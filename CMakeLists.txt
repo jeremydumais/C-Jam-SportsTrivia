@@ -5,6 +5,14 @@ project("SportsTriviaProject" LANGUAGES C)
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED TRUE)
 
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin)
+
+INCLUDE(FindPkgConfig)
+PKG_SEARCH_MODULE(FREETYPE REQUIRED freetype2)
+PKG_SEARCH_MODULE(SDL2 REQUIRED sdl2)
+PKG_SEARCH_MODULE(SDL2TTF REQUIRED SDL2_ttf>=2.0.0)
+
 enable_testing()
 
 # Download and unpack dependencies at configure time
@@ -37,23 +45,6 @@ if(result)
 endif() 
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/unity-src/src)
 add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/unity-src EXCLUDE_FROM_ALL)
-
-# Add SDL2
-include(ExternalProject)
-ExternalProject_Add(sdl2_project
-    PREFIX "${CMAKE_BINARY_DIR}/external"
-    URL "https://www.libsdl.org/release/SDL2-2.0.8.tar.gz"
-    URL_HASH SHA256=edc77c57308661d576e843344d8638e025a7818bff73f8fbfab09c3c5fd092ec
-    CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/external/installed
-    )
-ExternalProject_Get_Property(sdl2_project SOURCE_DIR)
-ExternalProject_Get_Property(sdl2_project BINARY_DIR)
-
-set(SDL2_SRC ${SOURCE_DIR})
-set(SDL2_BIN ${BINARY_DIR})
-
-file(GLOB SDL2_INCLUDE "${SDL2_SRC}/include/*")
-file(COPY ${SDL2_INCLUDE} DESTINATION ${SDL2_BIN}/include/)
 
 add_subdirectory("sports_trivia")
 
