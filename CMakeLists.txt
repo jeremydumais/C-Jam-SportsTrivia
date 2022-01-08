@@ -5,9 +5,6 @@ project("SportsTriviaProject" LANGUAGES C)
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED TRUE)
 
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin)
-
 INCLUDE(FindPkgConfig)
 PKG_SEARCH_MODULE(FREETYPE REQUIRED freetype2)
 PKG_SEARCH_MODULE(SDL2 REQUIRED sdl2)
@@ -46,6 +43,11 @@ endif()
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/unity-src/src)
 add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/unity-src EXCLUDE_FROM_ALL)
 
+include_directories(${CMAKE_BINARY_DIR}/src/freetype2/include
+                    ${CMAKE_CURRENT_SOURCE_DIR}/sports_trivia/include
+                    ${CMAKE_CURRENT_SOURCE_DIR}/sports_trivia.ui/include)
+
+add_subdirectory("sports_trivia.ui")
 add_subdirectory("sports_trivia")
 
 #add_executable("jacl.test" test/main.c )

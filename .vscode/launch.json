@@ -8,7 +8,7 @@
             "name": "(gdb) Launch",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/bin/sportstrivia",
+            "program": "${workspaceFolder}/build/sports_trivia/sportstrivia",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/build",

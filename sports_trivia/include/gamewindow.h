@@ -5,10 +5,12 @@
 #include <SDL2/SDL_ttf.h>
 #include <stdbool.h>
 
-enum inputMode { NoInput, EditText };
+enum inputMode { NoInput, EditText, ChooseNumber };
 
 //Colors 
 SDL_Color lightBlue;
+SDL_Color white;
+SDL_Color lightGray;
 
 //Fonts
 TTF_Font *titleFont;
@@ -16,7 +18,6 @@ TTF_Font *playerNameEditFont;
 
 SDL_Window *createGameWindow();
 void destrowGameWindow();
-SDL_Texture *createTextureFromImageFile(SDL_Renderer *renderer, const char *imagePath);
 void initializeColors();
 bool initializeFonts();
 void destroyFonts();
