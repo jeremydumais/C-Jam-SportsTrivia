@@ -2,23 +2,22 @@
 #define MAIN_H
 
 #include "gamewindow.h"
+#include "label.h"
 #include "player.h"
 
-enum gameMode { titleScreen, 
-                enterPlayer1Name, 
-                enterPlayer2Name, 
-                playGame, 
-                endGame };
+typedef enum { titleScreen, 
+              enterPlayer1Name, 
+              enterPlayer2Name, 
+              playGame, 
+              endGame } GameMode;
 
-enum gameMode currentGameMode = titleScreen;
-enum inputMode currentInputMode = NoInput;
-char player1Name[PLAYERNAME_MAXLENGTH+1] = "Player1";
-char player2Name[PLAYERNAME_MAXLENGTH+1] = "Player2";
+GameMode currentGameMode = titleScreen;
+InputMode currentInputMode = NoInput;
 
 //Text input objets
 char *currentInput = NULL;
 int currentInputMaxLength = 0;
-struct TextObj *currentInputTextObj = NULL;
+LabelObj *currentInputTextObj = NULL;
 bool currentInputNeedToRerender = true;
 
 //Number choice objects
@@ -34,13 +33,14 @@ SDL_Window *window = NULL;
 int windowWidth = 0;
 int windowXCenter = 0;
 SDL_Renderer *renderer = NULL;
-SDL_Texture *backgroundTexture = NULL;
-struct TextObj titleTextObjBlue;
-struct TextObj titleTextObjWhite;
-struct TextObj typePlayer1NameTextObj;
-struct TextObj typePlayer2NameTextObj;
-struct TextObj typePlayerNameTextResultObj;
 
+typedef struct {
+    SDL_Texture **texture;
+    const char *filePath;
+} InitTextureObj;
+SDL_Texture *backgroundTexture = NULL;
+SDL_Texture *backgroundTextureTitle = NULL;
+SDL_Texture *scoreboardTexture = NULL;
 
 bool initializeSDL();
 void destroySDL();
@@ -48,11 +48,18 @@ void destroySDL();
 bool initializeSDLGameObjects();
 void destroySDLGameObjects();
 
+void manageEvents(SDL_Event *event);
+
+void displayGame();
 void displayTitleScreen();
 void displayEnterPlayer1Name();
 void displayEnterPlayer2Name();
+void displayEnterPlayerName();
+void displayPlayGame();
+void displayPlayerScoreboardName(LabelObj *labelObj, const int scoreBoardWidth, const int x, const int y);
 
 //Game phase
-void moveToEnterPlayer1Name();
-void moveToEnterPlayer2Name();
+bool changeGamePhaseIfNeeded();
+void moveToEnterPlayerName(GameMode mode, char *playerName);
+void moveToPlayGame();
 #endif

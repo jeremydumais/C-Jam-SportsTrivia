@@ -1,7 +1,10 @@
 #include "main.h"
+#include "dataservices.h"
 #include "input.h"
-#include "text.h"
+#include "label.h"
+#include "player.h"
 #include "texture.h"
+#include "trivia.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <stdbool.h>
@@ -9,8 +12,17 @@
 #include <stdlib.h>
 #include <string.h>
 
-int main(int argc, char **argv)
+int main(void)
 {
+    /*DataQueryResult *result = getQueryData("SELECT * FROM Question", extractQuestionList);
+    if (!result) {
+        printf("%s", getLastDatabaseErrorMsg());
+    }
+    printf("test %d\n", result->count);
+    free(result);
+
+    return EXIT_FAILURE;*/
+
     if (!initializeSDL()) {
         return EXIT_FAILURE;
     }
@@ -25,74 +37,16 @@ int main(int argc, char **argv)
     if (!initializeSDLGameObjects()) {
         return EXIT_FAILURE;
     }
+    initializeDatabase();
+    initializePlayersData();
 
     while (!quit)
     {
         SDL_WaitEvent(&event);
-        switch (event.type)
-        {
-        case SDL_KEYDOWN:
-            if (currentGameMode == titleScreen && event.key.keysym.sym == SDLK_RETURN) {
-                moveToEnterPlayer1Name();
-                break;
-            }
-            else if (currentGameMode == enterPlayer1Name && event.key.keysym.sym == SDLK_RETURN) {
-                if (strlen(currentInput) > 0) {
-                    moveToEnterPlayer2Name();
-                    break;
-                }
-                break;
-            }
-            if(currentInputMode == EditText) {
-                if (event.key.keysym.sym == SDLK_RETURN) {
-                    
-                    currentInputMode = NoInput;
-                    break;
-                }
-                size_t inputLength = strlen(currentInput);
-                if (event.key.keysym.sym == SDLK_BACKSPACE && 
-                    inputLength > 0) {
-                    currentInput[inputLength-1] = '\0';
-                    currentInputNeedToRerender = true;
-               }
-            }
-            else if (currentInputMode == ChooseNumber) {
-                int choiceResult = getChoosenNumberFromKey(event.key.keysym.sym, currentChoiceMin, currentChoiceMax);
-                if(choiceResult >= 0) {
-                    *currentChoiceResult = (unsigned int)choiceResult;
-                }
-            }
-            break;
-        case SDL_TEXTINPUT:
-            if(currentInputMode == EditText && !(SDL_GetModState() & KMOD_CTRL && 
-                                                    (event.text.text[0] == 'c' || 
-                                                     event.text.text[0] == 'C' || 
-                                                     event.text.text[0] == 'v' || 
-                                                     event.text.text[0] == 'V'))) {
-                if (strlen(currentInput) < currentInputMaxLength) {
-                    strcat(currentInput, event.text.text);
-                }
-                currentInputNeedToRerender = true;
-            }
-            break;
-        case SDL_QUIT:
-            quit = true;
-            break;
-        }
+        manageEvents(&event);
         SDL_GetWindowSize(window, &windowWidth, NULL);
         windowXCenter = (windowWidth / 2);
-
-        SDL_RenderCopy(renderer, backgroundTexture, NULL, NULL);
-
-        if (currentGameMode == titleScreen) {
-            displayTitleScreen();
-        }
-        else if (currentGameMode == enterPlayer1Name) {
-            displayEnterPlayer1Name();
-        }
-        else if (currentGameMode == enterPlayer2Name) {
-            displayEnterPlayer2Name();
-        }
+        displayGame();
         SDL_RenderPresent(renderer);
     }
     destroySDLGameObjects();
@@ -132,97 +86,188 @@ void destroySDL()
 
 bool initializeSDLGameObjects()
 {
-    backgroundTexture = createTextureFromImageFile(renderer, 
-                                                   "sports_trivia/resources/wallpaper.bmp");
-    if (!backgroundTexture) {
-        printf("Unable to initialize the background image : %s\n", SDL_GetError());
-        return false;
+    #define TEXTUREOBJETCSTLENGTH 3
+    InitTextureObj textureObjects[TEXTUREOBJETCSTLENGTH] = {{ &backgroundTexture, "sports_trivia/resources/wallpaper.bmp" },
+                                                                   { &backgroundTextureTitle, "sports_trivia/resources/wallpaperTitle.bmp" },
+                                                                   { &scoreboardTexture, "sports_trivia/resources/scoreboard.bmp" } };
+    for(size_t i = 0; i < TEXTUREOBJETCSTLENGTH; i++) {
+        (*textureObjects[i].texture) = createTextureFromImageFile(renderer, textureObjects[i].filePath);
+        if (!(*textureObjects[i].texture)) {
+            printf("Unable to initialize the texture : %s\n", SDL_GetError());
+            return false;
+        }
     }
-    if (!initializeText(renderer, &titleTextObjBlue, "Sports Trivia", titleFont, &lightBlue)) {
-        printf("Unable to initialize the text : %s\n", SDL_GetError());
-        return false;
-    }
-    if (!initializeText(renderer, &titleTextObjWhite, "Sports Trivia", titleFont, &lightGray)) {
-        printf("Unable to initialize the text : %s\n", SDL_GetError());
-        return false;
-    }
-    if (!initializeText(renderer, &typePlayer1NameTextObj, "Type player 1 name :", playerNameEditFont, &lightBlue)) {
-        printf("Unable to initialize the text : %s\n", SDL_GetError());
-        return false;
-    }
-    if (!initializeText(renderer, &typePlayer2NameTextObj, "Type player 2 name :", playerNameEditFont, &lightBlue)) {
-        printf("Unable to initialize the text : %s\n", SDL_GetError());
-        return false;
-    }
-    if (!initializeText(renderer, &typePlayerNameTextResultObj, player1Name, playerNameEditFont, &lightBlue)) {
-        printf("Unable to initialize the text : %s\n", SDL_GetError());
-        return false;
-    }
-    return true;
+    return initializeGameLabels(renderer);
 }
 
 void destroySDLGameObjects()
 {
-    destroyText(&titleTextObjBlue);
-    destroyText(&titleTextObjWhite);
-    destroyText(&typePlayer1NameTextObj);
-    destroyText(&typePlayerNameTextResultObj);
+    destroyGameLabels();
+    SDL_DestroyTexture(scoreboardTexture);
+    SDL_DestroyTexture(backgroundTextureTitle);
     SDL_DestroyTexture(backgroundTexture);
+}
+
+void manageEvents(SDL_Event *event)
+{
+    switch (event->type)
+    {
+    case SDL_KEYDOWN:
+        if (event->key.keysym.sym == SDLK_RETURN && changeGamePhaseIfNeeded()) {
+            break;
+        }
+        if(currentInputMode == EditText) {
+            size_t inputLength = strlen(currentInput);
+            if (event->key.keysym.sym == SDLK_BACKSPACE && inputLength > 0) {
+                currentInput[inputLength-1] = '\0';
+                currentInputNeedToRerender = true;
+            }
+        }
+        else if (currentInputMode == ChooseNumber) {
+            int choiceResult = getChoosenNumberFromKey(event->key.keysym.sym, currentChoiceMin, currentChoiceMax);
+            if(choiceResult >= 0) {
+                *currentChoiceResult = (unsigned int)choiceResult;
+            }
+        }
+        break;
+    case SDL_TEXTINPUT:
+        if(currentInputMode == EditText && !(SDL_GetModState() & KMOD_CTRL && 
+                                                (event->text.text[0] == 'c' || 
+                                                    event->text.text[0] == 'C' || 
+                                                    event->text.text[0] == 'v' || 
+                                                    event->text.text[0] == 'V'))) {
+            if (strlen(currentInput) < currentInputMaxLength) {
+                strcat(currentInput, event->text.text);
+            }
+            currentInputNeedToRerender = true;
+        }
+        break;
+    case SDL_QUIT:
+        quit = true;
+        break;
+    }
+}
+
+
+void displayGame()
+{
+    switch(currentGameMode) {
+    case titleScreen:
+        displayTitleScreen();
+        break;
+    case enterPlayer1Name:
+        displayEnterPlayerName(&typePlayer1NameLabelObj);
+        break;
+    case enterPlayer2Name:
+        displayEnterPlayerName(&typePlayer2NameLabelObj);
+        break;
+    case playGame:
+        displayPlayGame();
+        break;
+    default:
+        break;
+    }
 }
 
 void displayTitleScreen()
 {
-    displayText(renderer, &titleTextObjBlue, windowXCenter - (titleTextObjBlue.surface->w / 2), 40);
+    SDL_RenderCopy(renderer, backgroundTextureTitle, NULL, NULL);
+    displayLabel(renderer, &titleLabelObjBlue, windowXCenter - (titleLabelObjBlue.surface->w / 2), 40);
 }
 
-void displayEnterPlayer1Name()
+void displayEnterPlayerName(LabelObj *typePlayerNameTextObj)
 {
-    displayText(renderer, &titleTextObjWhite, 40, 10);
-    displayText(renderer, &typePlayer1NameTextObj, windowXCenter - (typePlayer1NameTextObj.surface->w / 2), 250);
+    SDL_RenderCopy(renderer, backgroundTexture, NULL, NULL);
+    displayLabel(renderer, &titleLabelObjWhite, 40, 10);
+    displayLabel(renderer, typePlayerNameTextObj, windowXCenter - (typePlayerNameTextObj->surface->w / 2), 250);
     if (currentInputMode == EditText) {
         if (currentInputNeedToRerender) {
-            destroyText(&typePlayerNameTextResultObj);
-            initializeText(renderer, currentInputTextObj, currentInput, playerNameEditFont, &lightBlue);
+            destroyLabel(&typePlayerNameLabelResultObj);
+            initializeLabel(renderer, currentInputTextObj, currentInput, playerNameEditFont, &lightBlue);
             currentInputNeedToRerender = false;
         }
         if (strlen(currentInput) > 0) {
-            displayText(renderer, &typePlayerNameTextResultObj, windowXCenter - (typePlayerNameTextResultObj.surface->w / 2), 320);
+            displayLabel(renderer, &typePlayerNameLabelResultObj, windowXCenter - (typePlayerNameLabelResultObj.surface->w / 2), 320);
         }
     }
 }
 
-void displayEnterPlayer2Name()
+void displayPlayGame()
 {
-    displayText(renderer, &titleTextObjWhite, 40, 10);
-    displayText(renderer, &typePlayer2NameTextObj, windowXCenter - (typePlayer2NameTextObj.surface->w / 2), 250);
-    if (currentInputMode == EditText) {
-        if (currentInputNeedToRerender) {
-            destroyText(&typePlayerNameTextResultObj);
-            initializeText(renderer, currentInputTextObj, currentInput, playerNameEditFont, &lightBlue);
-            currentInputNeedToRerender = false;
-        }
+    SDL_RenderCopy(renderer, backgroundTexture, NULL, NULL);
+    //Scoreboard
+    const int SCOREBOARDWIDTH = 400;
+    const int SCOREBOARDHEIGHT = 150;
+    const int SCOREBOARDPADDING = 10;
+    SDL_Rect rectScoreBoardPlayer1Position = { SCOREBOARDPADDING, SCOREBOARDPADDING, SCOREBOARDWIDTH, SCOREBOARDHEIGHT };
+    SDL_RenderCopy(renderer, scoreboardTexture, NULL, &rectScoreBoardPlayer1Position);
+    SDL_Rect rectScoreBoardPlayer2Position = { windowWidth - (SCOREBOARDWIDTH + SCOREBOARDPADDING), SCOREBOARDPADDING, SCOREBOARDWIDTH, SCOREBOARDHEIGHT };
+    SDL_RenderCopy(renderer, scoreboardTexture, NULL, &rectScoreBoardPlayer2Position);
+    const int SCOREBOARD1CENTER = SCOREBOARDPADDING + (SCOREBOARDWIDTH / 2);
+    const int SCOREBOARD2CENTER = (windowWidth - SCOREBOARDPADDING) - (SCOREBOARDWIDTH / 2);
+    //Player names
+    displayPlayerScoreboardName(&scoreBoardPlayer1NameLabelObj, SCOREBOARDWIDTH,
+                                SCOREBOARD1CENTER - (scoreBoardPlayer1NameLabelObj.surface->w/2),
+                                SCOREBOARDPADDING);
+    displayPlayerScoreboardName(&scoreBoardPlayer2NameLabelObj, SCOREBOARDWIDTH,
+                                SCOREBOARD2CENTER - (scoreBoardPlayer2NameLabelObj.surface->w/2),
+                                SCOREBOARDPADDING);                            
+    //Scores
+    displayLabel(renderer, &scoreBoardPlayer1ScoreLabelObj, SCOREBOARD1CENTER - (scoreBoardPlayer1ScoreLabelObj.surface->w/2), 80);
+    displayLabel(renderer, &scoreBoardPlayer2ScoreLabelObj, SCOREBOARD2CENTER - (scoreBoardPlayer2ScoreLabelObj.surface->w/2), 80);
+}
+
+void displayPlayerScoreboardName(LabelObj *labelObj, const int scoreBoardWidth, const int x, const int y)
+{
+    size_t player1NameSurfaceWidth = labelObj->surface->w;
+    if (player1NameSurfaceWidth > scoreBoardWidth) {
+        //Fit the name in the score board if required
+        labelObj->surface->w = scoreBoardWidth - 20;
+    }
+    displayLabel(renderer, labelObj, x, y);
+}
+
+bool changeGamePhaseIfNeeded()
+{
+    if (currentGameMode == titleScreen) {
+        moveToEnterPlayerName(enterPlayer1Name, player1Name);
+        return true;
+    }
+    if (currentGameMode == enterPlayer1Name) {
         if (strlen(currentInput) > 0) {
-            displayText(renderer, &typePlayerNameTextResultObj, windowXCenter - (typePlayerNameTextResultObj.surface->w / 2), 320);
+            destroyLabel(&scoreBoardPlayer1NameLabelObj);
+            if (!initializeLabel(renderer, &scoreBoardPlayer1NameLabelObj, player1Name, playerNameEditFont, &white)) {
+                printf("Unable to initialize the text : %s\n", SDL_GetError());
+            }
+            moveToEnterPlayerName(enterPlayer2Name, player2Name);
+            return true;
         }
     }
+    if (currentGameMode == enterPlayer2Name) {
+        if (strlen(currentInput) > 0) {
+            destroyLabel(&scoreBoardPlayer2NameLabelObj);
+            if (!initializeLabel(renderer, &scoreBoardPlayer2NameLabelObj, player2Name, playerNameEditFont, &white)) {
+                printf("Unable to initialize the text : %s\n", SDL_GetError());
+            }
+            moveToPlayGame();
+            return true;
+        }
+    }
+    return false;
 }
 
-void moveToEnterPlayer1Name()
+void moveToEnterPlayerName(GameMode mode, char *playerName)
 {
-    currentGameMode = enterPlayer1Name;
+    currentGameMode = mode;
     currentInputMode = EditText;
     currentInputNeedToRerender = true;
-    currentInput = player1Name;
+    currentInput = playerName;
     currentInputMaxLength = PLAYERNAME_MAXLENGTH;
-    currentInputTextObj = &typePlayerNameTextResultObj;
+    currentInputTextObj = &typePlayerNameLabelResultObj;
 }
 
-void moveToEnterPlayer2Name()
+void moveToPlayGame()
 {
-    currentGameMode = enterPlayer2Name;
+    currentGameMode = playGame;
     currentInputMode = EditText;
-    currentInputNeedToRerender = true;
-    currentInput = player2Name;
-    currentInputMaxLength = PLAYERNAME_MAXLENGTH;
-    currentInputTextObj = &typePlayerNameTextResultObj;
 }

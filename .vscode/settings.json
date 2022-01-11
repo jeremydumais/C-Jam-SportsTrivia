@@ -5,6 +5,10 @@
         "stdbool.h": "c",
         "input.h": "c",
         "text.h": "c",
-        "gamewindow.h": "c"
+        "gamewindow.h": "c",
+        "string.h": "c",
+        "*.tcc": "c",
+        "cstdio": "c",
+        "limits.h": "c"
     }
 }
