@@ -19,7 +19,20 @@ void databaseClose(sqlite3 *db)
     db = NULL;
 }
 
-DataQueryResult *getQueryData(const char *sqlQuery, DataQueryResult *(*readDataFun)(sqlite3_stmt *res))
+vector *extractList(sqlite3_stmt *res, void(*extractItem)(vector *vec, sqlite3_stmt *res))
+{
+    vector *retVal = malloc(sizeof(vector));
+    vectorInit(retVal);
+    int rc = sqlite3_step(res);
+    
+    while (rc == SQLITE_ROW) {
+        extractItem(retVal, res);
+        rc = sqlite3_step(res);
+    }
+    return retVal; 
+}
+
+vector *getQueryData(const char *sqlQuery, void(*extractItem)(vector *vec, sqlite3_stmt *res))
 {
     if (!db && !databaseOpen(DATABASEPATH)) {
         databaseClose(db);
@@ -31,7 +44,7 @@ DataQueryResult *getQueryData(const char *sqlQuery, DataQueryResult *(*readDataF
     if (rc != SQLITE_OK) {
         return NULL;
     }    
-    DataQueryResult *result = readDataFun(res);
+    vector *result = extractList(res, extractItem);
     sqlite3_finalize(res);
     return result;
 }

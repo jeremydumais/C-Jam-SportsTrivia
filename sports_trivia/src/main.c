@@ -1,10 +1,7 @@
 #include "main.h"
 #include "dataservices.h"
 #include "input.h"
-#include "label.h"
-#include "player.h"
 #include "texture.h"
-#include "trivia.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <stdbool.h>
@@ -14,15 +11,6 @@
 
 int main(void)
 {
-    /*DataQueryResult *result = getQueryData("SELECT * FROM Question", extractQuestionList);
-    if (!result) {
-        printf("%s", getLastDatabaseErrorMsg());
-    }
-    printf("test %d\n", result->count);
-    free(result);
-
-    return EXIT_FAILURE;*/
-
     if (!initializeSDL()) {
         return EXIT_FAILURE;
     }
@@ -39,16 +27,25 @@ int main(void)
     }
     initializeDatabase();
     initializePlayersData();
-
+    Uint32 oldTime = SDL_GetTicks();
+    Uint32 newTime;
     while (!quit)
     {
-        SDL_WaitEvent(&event);
-        manageEvents(&event);
-        SDL_GetWindowSize(window, &windowWidth, NULL);
+        newTime = SDL_GetTicks();
+        delta = newTime - oldTime;
+        manageEvents();
+        SDL_GetWindowSize(window, &windowWidth, &windowHeight);
         windowXCenter = (windowWidth / 2);
+        windowYCenter = (windowHeight / 2);
         displayGame();
         SDL_RenderPresent(renderer);
+        SDL_RenderFlush(renderer);
+        if (delta >= 1) {
+            oldTime = newTime;
+        }
     }
+    freeAnswers();
+    freeQuestions();
     destroySDLGameObjects();
     destroySDL();
     return EXIT_SUCCESS;
@@ -108,43 +105,73 @@ void destroySDLGameObjects()
     SDL_DestroyTexture(backgroundTexture);
 }
 
-void manageEvents(SDL_Event *event)
+void freeQuestions()
+{  
+    vectorFree(currentGameQuestions);
+    free(currentGameQuestions);
+    currentGameQuestions = NULL;
+}
+
+void freeAnswers()
 {
-    switch (event->type)
+    vectorFree(currentQuestionAnswers);
+    free(currentQuestionAnswers);
+    currentQuestionAnswers = NULL;
+}
+void manageEvents()
+{
+    while(SDL_PollEvent(&event) != 0)
     {
-    case SDL_KEYDOWN:
-        if (event->key.keysym.sym == SDLK_RETURN && changeGamePhaseIfNeeded()) {
+        switch (event.type)
+        {
+        case SDL_KEYDOWN:
+            if (event.key.keysym.sym == SDLK_RETURN && changeGamePhaseIfNeeded()) {
+                break;
+            }
+            if(currentInputMode == EditText) {
+                size_t inputLength = strlen(currentInput);
+                if (event.key.keysym.sym == SDLK_BACKSPACE && inputLength > 0) {
+                    currentInput[inputLength-1] = '\0';
+                    currentInputNeedToRerender = true;
+                }
+            }
+            else if (currentInputMode == ChooseNumber) {
+                int choiceResult = getChoosenNumberFromKey(event.key.keysym.sym, currentChoiceMin, currentChoiceMax);
+                if(choiceResult >= 0) {
+                    *currentChoiceResult = (unsigned int)choiceResult;
+                    if (currentGameMode == playGame) {
+                        playerSubmitAnswer();
+                    }
+                }
+            }
+            else if (currentInputMode == ChooseBool) {
+                if (event.key.keysym.sym == SDLK_y) {
+                    boolChoiceResult = true;
+                    playerSubmitAnswer();
+                }
+                if (event.key.keysym.sym == SDLK_n) {
+                    boolChoiceResult = false;
+                    playerSubmitAnswer();
+                }
+                SDL_FlushEvent(SDL_TEXTINPUT);
+            }
             break;
-        }
-        if(currentInputMode == EditText) {
-            size_t inputLength = strlen(currentInput);
-            if (event->key.keysym.sym == SDLK_BACKSPACE && inputLength > 0) {
-                currentInput[inputLength-1] = '\0';
+        case SDL_TEXTINPUT:
+            if(currentInputMode == EditText && !(SDL_GetModState() & KMOD_CTRL && 
+                                                    (event.text.text[0] == 'c' || 
+                                                        event.text.text[0] == 'C' || 
+                                                        event.text.text[0] == 'v' || 
+                                                        event.text.text[0] == 'V'))) {
+                if (strlen(currentInput) < currentInputMaxLength) {
+                    strcat(currentInput, event.text.text);
+                }
                 currentInputNeedToRerender = true;
             }
+            break;
+        case SDL_QUIT:
+            quit = true;
+            break;
         }
-        else if (currentInputMode == ChooseNumber) {
-            int choiceResult = getChoosenNumberFromKey(event->key.keysym.sym, currentChoiceMin, currentChoiceMax);
-            if(choiceResult >= 0) {
-                *currentChoiceResult = (unsigned int)choiceResult;
-            }
-        }
-        break;
-    case SDL_TEXTINPUT:
-        if(currentInputMode == EditText && !(SDL_GetModState() & KMOD_CTRL && 
-                                                (event->text.text[0] == 'c' || 
-                                                    event->text.text[0] == 'C' || 
-                                                    event->text.text[0] == 'v' || 
-                                                    event->text.text[0] == 'V'))) {
-            if (strlen(currentInput) < currentInputMaxLength) {
-                strcat(currentInput, event->text.text);
-            }
-            currentInputNeedToRerender = true;
-        }
-        break;
-    case SDL_QUIT:
-        quit = true;
-        break;
     }
 }
 
@@ -164,37 +191,79 @@ void displayGame()
     case playGame:
         displayPlayGame();
         break;
+    case endGame:
+        displayEndGame();
+        break;
     default:
         break;
     }
 }
 
+void glowLabelObj(LabelObj *labelObj)
+{
+    if (delta >= 1) {
+        if (glowDecrease) {
+            glowState-= delta/6.0;
+        }
+        else {
+            glowState+= delta/6.0;
+        }
+        //printf("%d ", delta);
+        if (glowState < 40) {
+            glowDecrease = false;
+            glowState = 40;
+        }
+        else if (glowState >= 255) {
+            glowDecrease = true;
+            glowState = 255;
+        }
+        SDL_SetTextureAlphaMod(labelObj->texture, glowState);
+    }    
+}
+
 void displayTitleScreen()
 {
     SDL_RenderCopy(renderer, backgroundTextureTitle, NULL, NULL);
-    displayLabel(renderer, &titleLabelObjBlue, windowXCenter - (titleLabelObjBlue.surface->w / 2), 40);
+    displayCenteredScreenLabel(&titleLabelObjBlue, 40);
+    glowLabelObj(&titleEnterToStartLabelObj);
+    displayCenteredScreenLabel(&titleEnterToStartLabelObj, windowYCenter - (titleEnterToStartLabelObj.surface->h/2));
 }
 
 void displayEnterPlayerName(LabelObj *typePlayerNameTextObj)
 {
     SDL_RenderCopy(renderer, backgroundTexture, NULL, NULL);
-    displayLabel(renderer, &titleLabelObjWhite, 40, 10);
-    displayLabel(renderer, typePlayerNameTextObj, windowXCenter - (typePlayerNameTextObj->surface->w / 2), 250);
+    displayLabel(renderer, &titleLabelObjOrange, 40, 10);
+    displayCenteredScreenLabel(typePlayerNameTextObj, 250);
     if (currentInputMode == EditText) {
         if (currentInputNeedToRerender) {
-            destroyLabel(&typePlayerNameLabelResultObj);
-            initializeLabel(renderer, currentInputTextObj, currentInput, playerNameEditFont, &lightBlue);
+            if (!setLabelText(renderer, currentInputTextObj, currentInput, playerNameEditFont, &white)) {
+                quit = true;
+                return;
+            }
             currentInputNeedToRerender = false;
         }
         if (strlen(currentInput) > 0) {
-            displayLabel(renderer, &typePlayerNameLabelResultObj, windowXCenter - (typePlayerNameLabelResultObj.surface->w / 2), 320);
+            displayCenteredScreenLabel(&typePlayerNameLabelResultObj, 320);
         }
+        glowLabelObj(&typePlayerNameLabelResultCaretObj);
+        displayLabel(renderer, &typePlayerNameLabelResultCaretObj, windowXCenter + (typePlayerNameLabelResultObj.surface->w/2), 320);
     }
 }
 
 void displayPlayGame()
 {
     SDL_RenderCopy(renderer, backgroundTexture, NULL, NULL);
+    displayScoreBoardObjects();
+    //Display the question
+    displayCenteredScreenLabel(&gameQuestionLabelObj, 200);
+    displayCenteredScreenLabel(&gameAnswer1LabelObj, 300);
+    displayCenteredScreenLabel(&gameAnswer2LabelObj, 360);
+    displayCenteredScreenLabel(&gameAnswer3LabelObj, 420);
+    displayCenteredScreenLabel(&gameAnswer4LabelObj, 480);
+}
+
+void displayScoreBoardObjects()
+{
     //Scoreboard
     const int SCOREBOARDWIDTH = 400;
     const int SCOREBOARDHEIGHT = 150;
@@ -206,10 +275,22 @@ void displayPlayGame()
     const int SCOREBOARD1CENTER = SCOREBOARDPADDING + (SCOREBOARDWIDTH / 2);
     const int SCOREBOARD2CENTER = (windowWidth - SCOREBOARDPADDING) - (SCOREBOARDWIDTH / 2);
     //Player names
-    displayPlayerScoreboardName(&scoreBoardPlayer1NameLabelObj, SCOREBOARDWIDTH,
+    if (currentGameMode == playGame && currentPlayerTurnIndex == 1) {
+        glowLabelObj(&scoreBoardPlayer1NameLabelObj);
+    } 
+    else {
+        SDL_SetTextureAlphaMod(scoreBoardPlayer1NameLabelObj.texture, 255);
+    }
+    displayLabelWidthMaxCheck(&scoreBoardPlayer1NameLabelObj, SCOREBOARDWIDTH,
                                 SCOREBOARD1CENTER - (scoreBoardPlayer1NameLabelObj.surface->w/2),
                                 SCOREBOARDPADDING);
-    displayPlayerScoreboardName(&scoreBoardPlayer2NameLabelObj, SCOREBOARDWIDTH,
+    if (currentGameMode == playGame && currentPlayerTurnIndex == 2) {
+        glowLabelObj(&scoreBoardPlayer2NameLabelObj);
+    }
+    else {
+        SDL_SetTextureAlphaMod(scoreBoardPlayer2NameLabelObj.texture, 255);
+    }
+    displayLabelWidthMaxCheck(&scoreBoardPlayer2NameLabelObj, SCOREBOARDWIDTH,
                                 SCOREBOARD2CENTER - (scoreBoardPlayer2NameLabelObj.surface->w/2),
                                 SCOREBOARDPADDING);                            
     //Scores
@@ -217,14 +298,27 @@ void displayPlayGame()
     displayLabel(renderer, &scoreBoardPlayer2ScoreLabelObj, SCOREBOARD2CENTER - (scoreBoardPlayer2ScoreLabelObj.surface->w/2), 80);
 }
 
-void displayPlayerScoreboardName(LabelObj *labelObj, const int scoreBoardWidth, const int x, const int y)
+void displayLabelWidthMaxCheck(LabelObj *labelObj, const int maxWidth, const int x, const int y)
 {
-    size_t player1NameSurfaceWidth = labelObj->surface->w;
-    if (player1NameSurfaceWidth > scoreBoardWidth) {
+    size_t labelSurfaceWidth = labelObj->surface->w;
+    if (labelSurfaceWidth > maxWidth) {
         //Fit the name in the score board if required
-        labelObj->surface->w = scoreBoardWidth - 20;
+        labelObj->surface->w = maxWidth - 20;
     }
     displayLabel(renderer, labelObj, x, y);
+}
+
+void displayCenteredScreenLabel(LabelObj *labelObj, const int y)
+{
+    displayLabelWidthMaxCheck(labelObj, windowWidth, windowXCenter - (labelObj->surface->w/2), y);
+}
+
+void displayEndGame()
+{
+    SDL_RenderCopy(renderer, backgroundTextureTitle, NULL, NULL);
+    displayScoreBoardObjects();
+    displayCenteredScreenLabel(&endGameMessageLabelObj, 300);
+    displayCenteredScreenLabel(&endGameKeepSameUsersLabelObj, 380);
 }
 
 bool changeGamePhaseIfNeeded()
@@ -235,9 +329,9 @@ bool changeGamePhaseIfNeeded()
     }
     if (currentGameMode == enterPlayer1Name) {
         if (strlen(currentInput) > 0) {
-            destroyLabel(&scoreBoardPlayer1NameLabelObj);
-            if (!initializeLabel(renderer, &scoreBoardPlayer1NameLabelObj, player1Name, playerNameEditFont, &white)) {
-                printf("Unable to initialize the text : %s\n", SDL_GetError());
+            if (!setLabelText(renderer, &scoreBoardPlayer1NameLabelObj, player1Name, playerNameEditFont, &white)) {
+                quit = true;
+                return false;
             }
             moveToEnterPlayerName(enterPlayer2Name, player2Name);
             return true;
@@ -245,11 +339,11 @@ bool changeGamePhaseIfNeeded()
     }
     if (currentGameMode == enterPlayer2Name) {
         if (strlen(currentInput) > 0) {
-            destroyLabel(&scoreBoardPlayer2NameLabelObj);
-            if (!initializeLabel(renderer, &scoreBoardPlayer2NameLabelObj, player2Name, playerNameEditFont, &white)) {
-                printf("Unable to initialize the text : %s\n", SDL_GetError());
+            if (!setLabelText(renderer, &scoreBoardPlayer2NameLabelObj, player2Name, playerNameEditFont, &white)) {
+                quit = true;
+                return false;
             }
-            moveToPlayGame();
+            moveToInitializeGame();
             return true;
         }
     }
@@ -266,8 +360,164 @@ void moveToEnterPlayerName(GameMode mode, char *playerName)
     currentInputTextObj = &typePlayerNameLabelResultObj;
 }
 
-void moveToPlayGame()
+void moveToInitializeGame()
 {
+    player1Score = 0;
+    player2Score = 0;
+    if (!setLabelText(renderer, &scoreBoardPlayer1ScoreLabelObj, "0", scoreFont, &orange)) {
+        quit = true;
+        return;
+    }
+    if (!setLabelText(renderer, &scoreBoardPlayer2ScoreLabelObj, "0", scoreFont, &orange)) {
+        quit = true;
+        return;
+    }
     currentGameMode = playGame;
     currentInputMode = EditText;
+    currentGameQuestions = loadRandomQuestionsFromDatabase(4);
+    if (!currentGameQuestions) {
+        printf("Unable to load game questions.\n");
+        quit = true;
+        return;
+    }
+    currentQuestionIndex = 0;
+    currentPlayerTurnIndex = 1;
+    moveToGame();
+}
+
+void moveToGame()
+{
+    //Load the question
+    Question *question = vectorGetItem(currentGameQuestions, currentQuestionIndex);
+    if (!loadQuestionWithAnswers(question)) {
+        return;
+    }
+    currentInputMode = ChooseNumber;
+    currentChoiceMin = 1;
+    currentChoiceMax = 4;
+    currentChoiceResult = &choosenAnswer;
+}
+
+bool loadQuestionWithAnswers(Question *question)
+{
+    if (!setLabelText(renderer, &gameQuestionLabelObj, question->description, questionFont, &white)) {
+        quit = true;
+        return false;
+    }
+    //Load answers for the question
+    freeAnswers();
+    currentQuestionAnswers = loadAnswersFromQuestionId(question->id);
+    if (!currentQuestionAnswers) {
+        printf("Unable to load question answers.\n");
+        quit = true;
+        return false;
+    }
+    LabelObj *answersLabelObj[4] = { &gameAnswer1LabelObj, &gameAnswer2LabelObj, &gameAnswer3LabelObj, &gameAnswer4LabelObj };
+    for(int i=0; i<vectorGetSize(currentQuestionAnswers); i++) {
+        Answer *answer = vectorGetItem(currentQuestionAnswers, i);
+        char answerWithChoiceNo[DESCRIPTION_MAX + 3];
+        sprintf(answerWithChoiceNo, "%d) %s", i+1, answer->description);
+        if (!setLabelText(renderer, answersLabelObj[i], answerWithChoiceNo, answerFont, &white)) {
+            quit = true;
+            return false;
+        }
+    }
+    return true;
+}
+
+void playerSubmitAnswer()
+{
+    if (currentGameMode == playGame) {
+        Question *question = vectorGetItem(currentGameQuestions, currentQuestionIndex);
+        //Check if the submitted answers is the good one
+        if (choosenAnswer == question->rightAnswerNo) {
+            if (!incrementScoreForCurrentPlayer()) {
+                return;
+            }
+        } 
+        changePlayerTurn();
+        if (!changeToNextQuestion()) {
+            return;
+        }
+    }
+    else if (currentGameMode == endGame) {
+        if (boolChoiceResult) {
+            moveToInitializeGame();
+        } 
+        else {
+            strcpy(player1Name, "");
+            strcpy(player2Name, "");
+            moveToEnterPlayerName(enterPlayer1Name, player1Name);
+        }
+    }
+}
+
+bool incrementScoreForCurrentPlayer()
+{
+    bool retVal = true;
+    int *playerScore;
+    LabelObj *playerScoreLabelObj;
+    if (currentPlayerTurnIndex == 1) {
+        playerScore = &player1Score;
+        playerScoreLabelObj = &scoreBoardPlayer1ScoreLabelObj;
+    }
+    else {
+        playerScore = &player2Score;
+        playerScoreLabelObj = &scoreBoardPlayer2ScoreLabelObj;
+    }
+    //Give points, change player and change questions
+    (*playerScore)++;
+    char *scoreAsString = getPlayerScoreAsString(*playerScore);
+    if (!setLabelText(renderer, playerScoreLabelObj, scoreAsString, scoreFont, &orange)) {
+        quit = true;
+        retVal = false;
+    }
+    free(scoreAsString);
+    return retVal;
+}
+
+void changePlayerTurn()
+{
+    if (currentPlayerTurnIndex == 2) {
+        currentPlayerTurnIndex = 1;
+    }
+    else {
+        currentPlayerTurnIndex++;
+    }
+}
+
+bool changeToNextQuestion()
+{
+    currentQuestionIndex++;
+    if (currentQuestionIndex < vectorGetSize(currentGameQuestions)) {
+        Question *question = vectorGetItem(currentGameQuestions, currentQuestionIndex);
+        if (!loadQuestionWithAnswers(question)) {
+            return false;
+        }
+    }
+    else {
+        moveToEnd();
+    }
+    return true;
+}
+
+void moveToEnd()
+{
+    currentGameMode = endGame;
+    currentInputMode = ChooseBool;
+    freeQuestions();
+    freeAnswers();
+    char endGameMessage[DESCRIPTION_MAX] = { "The game is a tie!" };
+    if (player1Score != player2Score) {
+        sprintf(endGameMessage, "%s has won the game! Congratulations!", (player1Score > player2Score) ? player1Name : player2Name);
+    }
+
+    if (!setLabelText(renderer, &endGameMessageLabelObj, endGameMessage, playerNameEditFont, &white)) {
+        quit = true;
+        return;
+    }
+    if (!setLabelText(renderer, &endGameKeepSameUsersLabelObj, "Do you want to keep the same players for the next game? (y/n)", playerNameEditFont, &white)) {
+        quit = true;
+        return;
+    }
 }

@@ -9,6 +9,8 @@
         "string.h": "c",
         "*.tcc": "c",
         "cstdio": "c",
-        "limits.h": "c"
+        "limits.h": "c",
+        "stdlib.h": "c",
+        "trivia.h": "c"
     }
 }

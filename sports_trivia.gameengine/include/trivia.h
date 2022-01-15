@@ -12,7 +12,14 @@ typedef struct {
     int rightAnswerNo;
 } Question;
 
-DataQueryResult *extractQuestionList(sqlite3_stmt *res);
-bool loadRandomQuestionsFromDatabase(unsigned int count);
+typedef struct {
+    int id;
+    int questionId;
+    int no;
+    char description[DESCRIPTION_MAX];
+} Answer;
+
+vector *loadRandomQuestionsFromDatabase(unsigned int count);
+vector *loadAnswersFromQuestionId(int questionId);
 
 #endif

@@ -1,4 +1,5 @@
 #include "label.h"
+#include <stdio.h>
 
 bool initializeLabel(SDL_Renderer *renderer, 
                     LabelObj *object, 
@@ -8,7 +9,7 @@ bool initializeLabel(SDL_Renderer *renderer,
 {
     object->surface = TTF_RenderText_Solid(font, 
                                            strlen(textValue) == 0 ? " " : textValue, 
-                                           *color); 
+                                           *color);                                          
     if (!object->surface) {
         return false;
     }
@@ -39,12 +40,14 @@ void destroyLabel(LabelObj *object)
 
 bool initializeGameLabels(SDL_Renderer *renderer)
 {
-    #define TEXTOBJETCSTLENGTH 7
+    #define TEXTOBJETCSTLENGTH 9
     InitLabelObj textObjects[TEXTOBJETCSTLENGTH] = {{ &titleLabelObjBlue, "Sports Trivia", titleFont, &lightBlue },
-                                                          { &titleLabelObjWhite, "Sports Trivia", titleFont, &orange },
+                                                          { &titleLabelObjOrange, "Sports Trivia", titleFont, &orange },
+                                                          { &titleEnterToStartLabelObj, "Press enter to start", titleFont, &orange },
                                                           { &typePlayer1NameLabelObj, "Type player 1 name :", playerNameEditFont, &lightBlue },
                                                           { &typePlayer2NameLabelObj, "Type player 2 name :", playerNameEditFont, &lightBlue },
-                                                          { &typePlayerNameLabelResultObj, "", playerNameEditFont, &lightBlue },
+                                                          { &typePlayerNameLabelResultObj, "", playerNameEditFont, &white },
+                                                          { &typePlayerNameLabelResultCaretObj, "_", playerNameEditFont, &white },
                                                           { &scoreBoardPlayer1ScoreLabelObj, "0", scoreFont, &orange },
                                                           { &scoreBoardPlayer2ScoreLabelObj, "0", scoreFont, &orange } };
     bool error = false;
@@ -61,12 +64,37 @@ bool initializeGameLabels(SDL_Renderer *renderer)
 void destroyGameLabels()
 {
     destroyLabel(&titleLabelObjBlue);
-    destroyLabel(&titleLabelObjWhite);
+    destroyLabel(&titleLabelObjOrange);
+    destroyLabel(&titleEnterToStartLabelObj);
     destroyLabel(&typePlayer1NameLabelObj);
     destroyLabel(&typePlayer2NameLabelObj);
     destroyLabel(&typePlayerNameLabelResultObj);
+    destroyLabel(&typePlayerNameLabelResultCaretObj);
     destroyLabel(&scoreBoardPlayer1NameLabelObj);
     destroyLabel(&scoreBoardPlayer2NameLabelObj);
+    destroyLabel(&scoreBoardPlayer1ScoreLabelObj);
+    destroyLabel(&scoreBoardPlayer2ScoreLabelObj);
+    destroyLabel(&gameQuestionLabelObj);
+    destroyLabel(&gameAnswer1LabelObj);
+    destroyLabel(&gameAnswer2LabelObj);
+    destroyLabel(&gameAnswer3LabelObj);
+    destroyLabel(&gameAnswer4LabelObj);
+    destroyLabel(&endGameMessageLabelObj);
+    destroyLabel(&endGameKeepSameUsersLabelObj);
+}
+
+bool setLabelText(SDL_Renderer *renderer, 
+                  LabelObj *object, 
+                  const char *textValue,
+                  TTF_Font *font, 
+                  SDL_Color *color) 
+{
+    destroyLabel(object);
+    if (!initializeLabel(renderer, object, textValue, font, color)) {
+        printf("Unable to initialize the text : %s\n", SDL_GetError());
+        return false;
+    }
+    return true;
 }
 
 TTF_Font *initializeFont(const char *filePath, int size)
@@ -104,6 +132,14 @@ bool initializeFonts()
     if (!playerNameEditFont) {
         return false;
     }
+    questionFont = initializeFont(MAINFONTPATH, 48);
+    if (!questionFont) {
+        return false;
+    }
+    answerFont = initializeFont(MAINFONTPATH, 36);
+    if (!answerFont) {
+        return false;
+    }
     scoreFont = initializeFont("sports_trivia/resources/scoreboard.ttf", 60);
     return scoreFont != NULL;
 }
@@ -112,5 +148,7 @@ void destroyFonts()
 {
     destroyFont(titleFont);
     destroyFont(playerNameEditFont);
+    destroyFont(questionFont);
+    destroyFont(answerFont);
     destroyFont(scoreFont);
 }

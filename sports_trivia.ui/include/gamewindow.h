@@ -5,7 +5,7 @@
 #include <SDL2/SDL_ttf.h>
 #include <stdbool.h>
 
-typedef enum { NoInput, EditText, ChooseNumber } InputMode;
+typedef enum { NoInput, EditText, ChooseNumber, ChooseBool } InputMode;
 
 SDL_Window *createGameWindow();
 void destrowGameWindow();

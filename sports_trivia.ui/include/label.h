@@ -14,6 +14,8 @@ SDL_Color orange;
 TTF_Font *titleFont;
 TTF_Font *playerNameEditFont;
 TTF_Font *scoreFont;
+TTF_Font *questionFont;
+TTF_Font *answerFont;
 
 typedef struct
 {
@@ -29,14 +31,23 @@ typedef struct {
 } InitLabelObj;
 
 LabelObj titleLabelObjBlue;
-LabelObj titleLabelObjWhite;
+LabelObj titleLabelObjOrange;
+LabelObj titleEnterToStartLabelObj;
 LabelObj typePlayer1NameLabelObj;
 LabelObj typePlayer2NameLabelObj;
 LabelObj typePlayerNameLabelResultObj;
+LabelObj typePlayerNameLabelResultCaretObj;
 LabelObj scoreBoardPlayer1NameLabelObj;
 LabelObj scoreBoardPlayer2NameLabelObj;
 LabelObj scoreBoardPlayer1ScoreLabelObj;
 LabelObj scoreBoardPlayer2ScoreLabelObj;
+LabelObj gameQuestionLabelObj;
+LabelObj gameAnswer1LabelObj;
+LabelObj gameAnswer2LabelObj;
+LabelObj gameAnswer3LabelObj;
+LabelObj gameAnswer4LabelObj;
+LabelObj endGameMessageLabelObj;
+LabelObj endGameKeepSameUsersLabelObj;
 
 bool initializeLabel(SDL_Renderer *renderer, 
                     LabelObj *object, 
@@ -50,6 +61,12 @@ void displayLabel(SDL_Renderer *renderer,
                  int y);
 
 void destroyLabel(LabelObj *object);
+
+bool setLabelText(SDL_Renderer *renderer, 
+                  LabelObj *object, 
+                  const char *textValue,
+                  TTF_Font *font, 
+                  SDL_Color *color);
 
 bool initializeGameLabels(SDL_Renderer *renderer);
 void destroyGameLabels();
