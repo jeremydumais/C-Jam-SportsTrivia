@@ -46,12 +46,10 @@ add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/unity-src EXCLUDE_FROM_ALL)
 include_directories(${CMAKE_BINARY_DIR}/src/freetype2/include
                     ${CMAKE_CURRENT_SOURCE_DIR}/sports_trivia/include
                     ${CMAKE_CURRENT_SOURCE_DIR}/sports_trivia.gameengine/include
+                    ${CMAKE_CURRENT_SOURCE_DIR}/sports_trivia.audio/include
                     ${CMAKE_CURRENT_SOURCE_DIR}/sports_trivia.ui/include)
 
 add_subdirectory("sports_trivia.gameengine")
+add_subdirectory("sports_trivia.audio")
 add_subdirectory("sports_trivia.ui")
 add_subdirectory("sports_trivia")
-
-#add_executable("jacl.test" test/main.c )
-#target_link_libraries("jacl.test" jacl unity)
-#add_test(AllTestsInJACLTest "jacl.test")

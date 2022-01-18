@@ -53,7 +53,7 @@ bool initializeGameLabels(SDL_Renderer *renderer)
     bool error = false;
     for(size_t i = 0; i < TEXTOBJETCSTLENGTH; i++) {
         if (!initializeLabel(renderer, textObjects[i].textObject, textObjects[i].textValue, textObjects[i].font, textObjects[i].color)) {
-            printf("Unable to initialize the text : %s\n", SDL_GetError());
+            fprintf(stderr, "Unable to initialize the text : %s\n", SDL_GetError());
             error = true;
             break;
         }
@@ -75,6 +75,7 @@ void destroyGameLabels()
     destroyLabel(&scoreBoardPlayer1ScoreLabelObj);
     destroyLabel(&scoreBoardPlayer2ScoreLabelObj);
     destroyLabel(&gameQuestionLabelObj);
+    destroyLabel(&gameQuestionForLabelObj);
     destroyLabel(&gameAnswer1LabelObj);
     destroyLabel(&gameAnswer2LabelObj);
     destroyLabel(&gameAnswer3LabelObj);
@@ -91,7 +92,7 @@ bool setLabelText(SDL_Renderer *renderer,
 {
     destroyLabel(object);
     if (!initializeLabel(renderer, object, textValue, font, color)) {
-        printf("Unable to initialize the text : %s\n", SDL_GetError());
+        fprintf(stderr, "Unable to initialize the text : %s\n", SDL_GetError());
         return false;
     }
     return true;

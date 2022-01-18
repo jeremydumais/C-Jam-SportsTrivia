@@ -1,8 +1,10 @@
 #include "main.h"
+#include "audio.h"
 #include "dataservices.h"
 #include "input.h"
 #include "texture.h"
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_mixer.h>
 #include <SDL2/SDL_ttf.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -17,7 +19,7 @@ int main(void)
 
     window = createGameWindow();
     if (!window) {
-        printf("Unable to create the SDL Window : %s\n", SDL_GetError());
+        fprintf(stderr, "Unable to create the SDL Window : %s\n", SDL_GetError());
         return EXIT_FAILURE;
     }
 
@@ -25,8 +27,15 @@ int main(void)
     if (!initializeSDLGameObjects()) {
         return EXIT_FAILURE;
     }
+
+    
+    if (!initializeMusic()) {
+        return EXIT_FAILURE;
+    }
     initializeDatabase();
     initializePlayersData();
+    
+    Mix_PlayMusic(backgroundMusic, -1);
     Uint32 oldTime = SDL_GetTicks();
     Uint32 newTime;
     while (!quit)
@@ -53,20 +62,20 @@ int main(void)
 
 bool initializeSDL()
 {
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        printf("Error intializing SDL: %s\n", SDL_GetError());
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0) {
+        fprintf(stderr, "Error intializing SDL: %s\n", SDL_GetError());
 		return false;
     }
 
 	if (TTF_Init() < 0) {
-		printf("Error intializing SDL_ttf: %s\n", TTF_GetError());
+		fprintf(stderr, "Error intializing SDL_ttf: %s\n", TTF_GetError());
 		return false;
 	}
 
     SDL_StartTextInput();
     initializeColors();
     if (!initializeFonts()) {
-        printf("Unable to initialize fonts : %s\n", SDL_GetError());
+        fprintf(stderr, "Unable to initialize fonts : %s\n", SDL_GetError());
         return false;
     }
     return true;
@@ -90,7 +99,7 @@ bool initializeSDLGameObjects()
     for(size_t i = 0; i < TEXTUREOBJETCSTLENGTH; i++) {
         (*textureObjects[i].texture) = createTextureFromImageFile(renderer, textureObjects[i].filePath);
         if (!(*textureObjects[i].texture)) {
-            printf("Unable to initialize the texture : %s\n", SDL_GetError());
+            fprintf(stderr, "Unable to initialize the texture : %s\n", SDL_GetError());
             return false;
         }
     }
@@ -133,6 +142,7 @@ void manageEvents()
                 if (event.key.keysym.sym == SDLK_BACKSPACE && inputLength > 0) {
                     currentInput[inputLength-1] = '\0';
                     currentInputNeedToRerender = true;
+                    Mix_PlayChannel(-1, backspaceSound, 0);
                 }
             }
             else if (currentInputMode == ChooseNumber) {
@@ -164,6 +174,7 @@ void manageEvents()
                                                         event.text.text[0] == 'V'))) {
                 if (strlen(currentInput) < currentInputMaxLength) {
                     strcat(currentInput, event.text.text);
+                    Mix_PlayChannel(-1, keyPressSound, 0);
                 }
                 currentInputNeedToRerender = true;
             }
@@ -208,7 +219,6 @@ void glowLabelObj(LabelObj *labelObj)
         else {
             glowState+= delta/6.0;
         }
-        //printf("%d ", delta);
         if (glowState < 40) {
             glowDecrease = false;
             glowState = 40;
@@ -255,11 +265,12 @@ void displayPlayGame()
     SDL_RenderCopy(renderer, backgroundTexture, NULL, NULL);
     displayScoreBoardObjects();
     //Display the question
-    displayCenteredScreenLabel(&gameQuestionLabelObj, 200);
-    displayCenteredScreenLabel(&gameAnswer1LabelObj, 300);
-    displayCenteredScreenLabel(&gameAnswer2LabelObj, 360);
-    displayCenteredScreenLabel(&gameAnswer3LabelObj, 420);
-    displayCenteredScreenLabel(&gameAnswer4LabelObj, 480);
+    displayCenteredScreenLabel(&gameQuestionForLabelObj, 220);
+    displayCenteredScreenLabel(&gameQuestionLabelObj, 280);
+    displayCenteredScreenLabel(&gameAnswer1LabelObj, 360);
+    displayCenteredScreenLabel(&gameAnswer2LabelObj, 420);
+    displayCenteredScreenLabel(&gameAnswer3LabelObj, 480);
+    displayCenteredScreenLabel(&gameAnswer4LabelObj, 540);
 }
 
 void displayScoreBoardObjects()
@@ -374,9 +385,9 @@ void moveToInitializeGame()
     }
     currentGameMode = playGame;
     currentInputMode = EditText;
-    currentGameQuestions = loadRandomQuestionsFromDatabase(4);
+    currentGameQuestions = loadRandomQuestionsFromDatabase(10);
     if (!currentGameQuestions) {
-        printf("Unable to load game questions.\n");
+        fprintf(stderr, "Unable to load game questions.\n");
         quit = true;
         return;
     }
@@ -400,6 +411,12 @@ void moveToGame()
 
 bool loadQuestionWithAnswers(Question *question)
 {
+    char questionFor[100];
+    sprintf(questionFor, "Question for %s", currentPlayerTurnIndex == 1 ? player1Name : player2Name);
+    if (!setLabelText(renderer, &gameQuestionForLabelObj, questionFor, answerFont, &lightBlue)) {
+        quit = true;
+        return false;
+    }
     if (!setLabelText(renderer, &gameQuestionLabelObj, question->description, questionFont, &white)) {
         quit = true;
         return false;
@@ -408,7 +425,7 @@ bool loadQuestionWithAnswers(Question *question)
     freeAnswers();
     currentQuestionAnswers = loadAnswersFromQuestionId(question->id);
     if (!currentQuestionAnswers) {
-        printf("Unable to load question answers.\n");
+        fprintf(stderr, "Unable to load question answers.\n");
         quit = true;
         return false;
     }
@@ -434,6 +451,10 @@ void playerSubmitAnswer()
             if (!incrementScoreForCurrentPlayer()) {
                 return;
             }
+            Mix_PlayChannel(-1, goodAnswerSound, 0);
+        }
+        else {
+            Mix_PlayChannel(-1, errorSound, 0);
         } 
         changePlayerTurn();
         if (!changeToNextQuestion()) {

@@ -11,6 +11,7 @@
         "cstdio": "c",
         "limits.h": "c",
         "stdlib.h": "c",
-        "trivia.h": "c"
+        "trivia.h": "c",
+        "sdl_mixer.h": "c"
     }
 }

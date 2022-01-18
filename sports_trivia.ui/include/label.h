@@ -41,6 +41,7 @@ LabelObj scoreBoardPlayer1NameLabelObj;
 LabelObj scoreBoardPlayer2NameLabelObj;
 LabelObj scoreBoardPlayer1ScoreLabelObj;
 LabelObj scoreBoardPlayer2ScoreLabelObj;
+LabelObj gameQuestionForLabelObj;
 LabelObj gameQuestionLabelObj;
 LabelObj gameAnswer1LabelObj;
 LabelObj gameAnswer2LabelObj;
