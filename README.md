@@ -16,11 +16,20 @@ The game ends after all 10 questions have been answered.
 You can download the binaries here : https://jedubuntu.itch.io/sports-trivia
 
 ## Install instructions
-Download the snap file
-Navigate to the folder where you saved the file
+
+1. Download the snap file
+2. Navigate to the folder where you saved the file
+```bash
 sudo snap install sportstrivia_1.0_amd64.snap --dangerous
-Yes I know the --dangerous may seem quite strange but it's just that the package is not signed
+```
+<em>Yes I know the --dangerous may seem quite strange but it's just that the package is not signed</em>
+
+3. Type the command : 
+```bash
 sudo snap connect sportstrivia:alsa
-This step is required to connect the audio interface to the game
-Then type sportstrivia to launch the game
-Enjoy!
+```
+<em>This step is required to connect the audio interface to the game</em>
+
+4. Then type <em>sportstrivia</em> to launch the game
+
+5. Enjoy!
