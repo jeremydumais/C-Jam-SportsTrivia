@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include "main.h"
 #include "audio.h"
 #include "dataservices.h"
@@ -6,14 +7,29 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_mixer.h>
 #include <SDL2/SDL_ttf.h>
+#include <libgen.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 int main(void)
 {
-    if (!initializeSDL()) {
+    //Get current executable path
+    char *executablePathWithDir = calloc(PATH_MAX+FILENAME_MAX, sizeof(char));
+    ssize_t count = readlink("/proc/self/exe", executablePathWithDir, PATH_MAX);
+    if (count == -1) {
+        fprintf(stderr, "Unable to get the executable path\n");
+        return EXIT_FAILURE;
+    }
+    executablePath = calloc(PATH_MAX, sizeof(char));
+    memset(executablePath, 0, sizeof(executablePath));
+    strcpy(executablePath, dirname(executablePathWithDir));
+    free(executablePathWithDir);
+
+    if (!initializeSDL(executablePath)) {
         return EXIT_FAILURE;
     }
 
@@ -24,15 +40,15 @@ int main(void)
     }
 
     renderer = SDL_CreateRenderer(window, -1, 0);
-    if (!initializeSDLGameObjects()) {
+    if (!initializeSDLGameObjects(executablePath)) {
         return EXIT_FAILURE;
     }
 
     
-    if (!initializeMusic()) {
+    if (!initializeMusic(executablePath)) {
         return EXIT_FAILURE;
     }
-    initializeDatabase();
+    initializeDatabase(executablePath);
     initializePlayersData();
     
     Mix_PlayMusic(backgroundMusic, -1);
@@ -55,12 +71,14 @@ int main(void)
     }
     freeAnswers();
     freeQuestions();
+    freeDatabase();
     destroySDLGameObjects();
     destroySDL();
+    free(executablePath);
     return EXIT_SUCCESS;
 }
 
-bool initializeSDL()
+bool initializeSDL(const char *executablePath)
 {
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0) {
         fprintf(stderr, "Error intializing SDL: %s\n", SDL_GetError());
@@ -74,7 +92,7 @@ bool initializeSDL()
 
     SDL_StartTextInput();
     initializeColors();
-    if (!initializeFonts()) {
+    if (!initializeFonts(executablePath)) {
         fprintf(stderr, "Unable to initialize fonts : %s\n", SDL_GetError());
         return false;
     }
@@ -90,12 +108,18 @@ void destroySDL()
     SDL_Quit();
 }
 
-bool initializeSDLGameObjects()
+bool initializeSDLGameObjects(const char *executablePath)
 {
+    char wallpaperPath[PATH_MAX+FILENAME_MAX];
+    char wallpaperTitlePath[PATH_MAX+FILENAME_MAX];
+    char wallpaperScoreBoardPath[PATH_MAX+FILENAME_MAX];
+    sprintf(wallpaperPath, "%s/%s", executablePath, "resources/wallpaper.bmp");
+    sprintf(wallpaperTitlePath, "%s/%s", executablePath, "resources/wallpaperTitle.bmp");
+    sprintf(wallpaperScoreBoardPath, "%s/%s", executablePath, "resources/scoreboard.bmp");
     #define TEXTUREOBJETCSTLENGTH 3
-    InitTextureObj textureObjects[TEXTUREOBJETCSTLENGTH] = {{ &backgroundTexture, "sports_trivia/resources/wallpaper.bmp" },
-                                                                   { &backgroundTextureTitle, "sports_trivia/resources/wallpaperTitle.bmp" },
-                                                                   { &scoreboardTexture, "sports_trivia/resources/scoreboard.bmp" } };
+    InitTextureObj textureObjects[TEXTUREOBJETCSTLENGTH] = {{ &backgroundTexture, wallpaperPath },
+                                                                   { &backgroundTextureTitle, wallpaperTitlePath },
+                                                                   { &scoreboardTexture, wallpaperScoreBoardPath } };
     for(size_t i = 0; i < TEXTUREOBJETCSTLENGTH; i++) {
         (*textureObjects[i].texture) = createTextureFromImageFile(renderer, textureObjects[i].filePath);
         if (!(*textureObjects[i].texture)) {

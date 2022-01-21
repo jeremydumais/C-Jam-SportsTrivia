@@ -1,0 +1,100 @@
+name: sportstrivia # you probably want to 'snapcraft register <name>'
+base: core20 # the base snap is the execution environment for this snap
+version: '1.0' # just for humans, typically '1.2+git' or '1.3.2'
+summary: A small sports trivia game (2 players) # 79 char long summary
+description: |
+  A small sports trivia game to challenge your friends.
+  This game has been developed to pay tribute to 50 years of the C language.
+
+grade: stable # must be 'stable' to release into candidate/stable channels
+confinement: strict # use 'strict' once you have the right plugs and slots
+
+layout:
+  /usr/lib/$SNAPCRAFT_ARCH_TRIPLET/alsa-lib:
+    bind: $SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/alsa-lib
+  /usr/share/alsa:
+    bind: $SNAP/usr/share/alsa
+
+parts:
+  alsa-mixin:
+    plugin: dump
+    source: https://github.com/diddlesnaps/snapcraft-alsa.git
+    source-subdir: snapcraft-assets
+    build-packages:
+      - libasound2-dev
+    stage-packages:
+      - libasound2
+      - libasound2-plugins
+      - yad
+      - libasyncns0
+      - libogg0
+      - libsndfile1
+      - libxau6
+      - libxcb1
+      - libxdmcp6
+    stage:
+      # restrict to only audio-related files - you need to ensure
+      # that gtk3 is staged for yad to work correctly, to prompt
+      # users to connect the alsa plug or proceed with pulseaudio.
+      #
+      # This helps prevent symbol conflicts in situations where
+      # you're using a non-default library, such as those that the
+      # gnome-3-34 extension for core18 provides.
+      - etc/asound.conf
+      - snap/command-chain/alsa-launch
+      - usr/bin/yad*
+      - usr/lib/$SNAPCRAFT_ARCH_TRIPLET/alsa-lib
+      - usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libasound*
+      - usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libdnsfile*
+      - usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libFLAC*
+      - usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libjack*
+      - usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libpulse*
+      - usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libsamplerate*
+      - usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libspeex*
+      - usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libvorbis*
+      - usr/lib/$SNAPCRAFT_ARCH_TRIPLET/pulseaudio
+
+  sportstrivia:
+    after: [alsa-mixin]
+    # See 'snapcraft plugins'
+    plugin: cmake
+    cmake-parameters:
+      - -DCMAKE_BUILD_TYPE=Release
+    source: .
+    build-packages:
+      - cmake
+      - git
+      - libsdl2-dev
+      - libsdl2-mixer-dev
+      - libsdl2-ttf-dev
+      - libfreetype-dev
+      - libsqlite3-dev
+      - libpulse-dev
+    stage-packages:
+      - libsdl2-2.0-0
+      - libsdl2-ttf-2.0-0
+      - libsdl2-mixer-2.0-0
+      - libfreetype6
+      - pulseaudio
+      - libpulse0
+      - libasound2
+
+apps:
+  sportstrivia:
+    command-chain: ["snap/command-chain/alsa-launch"]
+    command: usr/local/bin/sportstrivia
+    environment:
+      LD_LIBRARY_PATH: $LD_LIBRARY_PATH:$SNAP/usr/local/lib:$SNAP/usr/lib/x86_64-linux-gnu/pulseaudio
+      ALSA_CONFIG_PATH: $SNAP/usr/share/alsa/alsa.conf
+      ALWAYS_USE_PULSEAUDIO: '1'
+    plugs:
+      - alsa
+      - audio-playback
+      - audio-record
+      - desktop
+      - desktop-legacy
+      - x11 # runs with xcb QT platform for now
+      - home # give home dir access
+      - pulseaudio
+      - opengl # QT/QML uses opengl
+

@@ -12,6 +12,9 @@
         "limits.h": "c",
         "stdlib.h": "c",
         "trivia.h": "c",
-        "sdl_mixer.h": "c"
+        "sdl_mixer.h": "c",
+        "functional": "c",
+        "texture.h": "c",
+        "dataservices.h": "c"
     }
 }

@@ -1,4 +1,5 @@
 #include "label.h"
+#include <limits.h>
 #include <stdio.h>
 
 bool initializeLabel(SDL_Renderer *renderer, 
@@ -122,26 +123,30 @@ void initializeColors()
     orange.b = 40;
 }
 
-bool initializeFonts()
+bool initializeFonts(const char *executablePath)
 {
-    const char *MAINFONTPATH = "sports_trivia/resources/hh-agallas-college.ttf";
-    titleFont = initializeFont(MAINFONTPATH, 98);
+    char mainFontPath[PATH_MAX+FILENAME_MAX];
+    char scoreBoardFontPath[PATH_MAX+FILENAME_MAX];
+    sprintf(mainFontPath, "%s/%s", executablePath, "resources/hh-agallas-college.ttf");
+    sprintf(scoreBoardFontPath, "%s/%s", executablePath, "resources/scoreboard.ttf");
+
+    titleFont = initializeFont(mainFontPath, 98);
     if (!titleFont) {
         return false;
     }
-    playerNameEditFont = initializeFont(MAINFONTPATH, 60);
+    playerNameEditFont = initializeFont(mainFontPath, 60);
     if (!playerNameEditFont) {
         return false;
     }
-    questionFont = initializeFont(MAINFONTPATH, 48);
+    questionFont = initializeFont(mainFontPath, 48);
     if (!questionFont) {
         return false;
     }
-    answerFont = initializeFont(MAINFONTPATH, 36);
+    answerFont = initializeFont(mainFontPath, 36);
     if (!answerFont) {
         return false;
     }
-    scoreFont = initializeFont("sports_trivia/resources/scoreboard.ttf", 60);
+    scoreFont = initializeFont(scoreBoardFontPath, 60);
     return scoreFont != NULL;
 }
 

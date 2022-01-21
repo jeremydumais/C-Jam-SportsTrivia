@@ -7,9 +7,11 @@
 #include <stdlib.h>
 
 sqlite3 *db;
-void initializeDatabase();
+char *databasePath;
+void initializeDatabase(const char *executablePath);
 bool databaseOpen(const char *dbPath);
 void databaseClose(sqlite3 *db);
+void freeDatabase();
 
 vector *getQueryData(const char *sqlQuery, void(*extractItem)(vector *vec, sqlite3_stmt *res));
 const char *getLastDatabaseErrorMsg();

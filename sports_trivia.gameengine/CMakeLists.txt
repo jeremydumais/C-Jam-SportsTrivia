@@ -7,4 +7,8 @@ add_library(sportstrivia.gameengine SHARED src/player.c
                                            
 target_link_libraries(sportstrivia.gameengine sqlite3)
 
-add_subdirectory(test)
+if (${BUILD_UNITTESTS})
+    add_subdirectory(test)
+endif()
+
+install(TARGETS sportstrivia.gameengine DESTINATION lib)

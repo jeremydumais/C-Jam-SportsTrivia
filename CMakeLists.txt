@@ -5,43 +5,52 @@ project("SportsTriviaProject" LANGUAGES C)
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED TRUE)
 
-INCLUDE(FindPkgConfig)
-PKG_SEARCH_MODULE(FREETYPE REQUIRED freetype2)
-PKG_SEARCH_MODULE(SDL2 REQUIRED sdl2)
-PKG_SEARCH_MODULE(SDL2TTF REQUIRED SDL2_ttf>=2.0.0)
+#find_package(Freetype REQUIRED)
+#find_package(SDL2 REQUIRED)
+#find_package(SDL_ttf REQUIRED)
+#find_package(SDL_MIXER REQUIRED)
+#find_package(SQLite3 REQUIRED)
 
-enable_testing()
-
-# Download and unpack dependencies at configure time
-configure_file(CMakeLists.txt.in dependencies-download/CMakeLists.txt)
-execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
-  RESULT_VARIABLE result
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/dependencies-download )
-if(result)
-  message(FATAL_ERROR "CMake step for dependencies-download failed: ${result}")
+set(BUILD_UNITTESTS ON)
+string(TOLOWER "${CMAKE_BUILD_TYPE}" LOWERCASE_CMAKE_BUILD_TYPE)
+if(LOWERCASE_CMAKE_BUILD_TYPE MATCHES "^(release)$")
+  set(BUILD_UNITTESTS OFF)
 endif()
-execute_process(COMMAND ${CMAKE_COMMAND} --build .
-  RESULT_VARIABLE result
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/dependencies-download )
-if(result)
-  message(FATAL_ERROR "Build step for dependencies-download failed: ${result}")
-endif() 
 
-# Configure and build unity at configure time
-execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
-  RESULT_VARIABLE result
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/unity-src )
-if(result)
-  message(FATAL_ERROR "CMake step for unity-src failed: ${result}")
+if (${BUILD_UNITTESTS})
+  enable_testing()
+
+  # Download and unpack dependencies at configure time
+  configure_file(CMakeLists.txt.in dependencies-download/CMakeLists.txt)
+  execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
+    RESULT_VARIABLE result
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/dependencies-download )
+  if(result)
+    message(FATAL_ERROR "CMake step for dependencies-download failed: ${result}")
+  endif()
+  execute_process(COMMAND ${CMAKE_COMMAND} --build .
+    RESULT_VARIABLE result
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/dependencies-download )
+  if(result)
+    message(FATAL_ERROR "Build step for dependencies-download failed: ${result}")
+  endif() 
+
+  # Configure and build unity at configure time
+  execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
+    RESULT_VARIABLE result
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/unity-src )
+  if(result)
+    message(FATAL_ERROR "CMake step for unity-src failed: ${result}")
+  endif()
+  execute_process(COMMAND ${CMAKE_COMMAND} --build .
+    RESULT_VARIABLE result
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/unity-src )
+  if(result)
+    message(FATAL_ERROR "Build step for unity-src failed: ${result}")
+  endif() 
+  include_directories(${CMAKE_CURRENT_BINARY_DIR}/unity-src/src)
+  add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/unity-src EXCLUDE_FROM_ALL)
 endif()
-execute_process(COMMAND ${CMAKE_COMMAND} --build .
-  RESULT_VARIABLE result
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/unity-src )
-if(result)
-  message(FATAL_ERROR "Build step for unity-src failed: ${result}")
-endif() 
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/unity-src/src)
-add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/unity-src EXCLUDE_FROM_ALL)
 
 include_directories(${CMAKE_BINARY_DIR}/src/freetype2/include
                     ${CMAKE_CURRENT_SOURCE_DIR}/sports_trivia/include

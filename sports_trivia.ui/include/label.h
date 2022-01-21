@@ -76,7 +76,7 @@ TTF_Font *initializeFont(const char *filePath, int size);
 void destroyFont(TTF_Font *font);
 
 void initializeColors();
-bool initializeFonts();
+bool initializeFonts(const char *executablePath);
 void destroyFonts();
 
 #endif

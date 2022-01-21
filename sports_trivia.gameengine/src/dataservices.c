@@ -1,10 +1,12 @@
 #include "dataservices.h"
+#include <limits.h>
+#include <string.h>
 
-const char *DATABASEPATH = "sports_trivia/resources/trivia.db";
-
-void initializeDatabase()
+void initializeDatabase(const char *executablePath)
 {
     db = NULL;
+    databasePath = malloc(PATH_MAX+FILENAME_MAX);
+    sprintf(databasePath, "%s/%s", executablePath, "resources/trivia.db");
 }
 
 bool databaseOpen(const char *dbPath)
@@ -18,6 +20,12 @@ void databaseClose(sqlite3 *db)
     sqlite3_close(db);
     db = NULL;
 }
+
+void freeDatabase()
+{
+    free(databasePath);
+}
+
 
 vector *extractList(sqlite3_stmt *res, void(*extractItem)(vector *vec, sqlite3_stmt *res))
 {
@@ -34,7 +42,7 @@ vector *extractList(sqlite3_stmt *res, void(*extractItem)(vector *vec, sqlite3_s
 
 vector *getQueryData(const char *sqlQuery, void(*extractItem)(vector *vec, sqlite3_stmt *res))
 {
-    if (!db && !databaseOpen(DATABASEPATH)) {
+    if (!db && !databaseOpen(databasePath)) {
         databaseClose(db);
         return NULL;
     }

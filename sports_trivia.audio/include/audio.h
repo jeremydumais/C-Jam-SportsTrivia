@@ -10,6 +10,6 @@ Mix_Chunk *backspaceSound;
 Mix_Chunk *errorSound;
 Mix_Chunk *goodAnswerSound;
 
-bool initializeMusic();
+bool initializeMusic(const char *executablePath);
 
 #endif

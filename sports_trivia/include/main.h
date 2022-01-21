@@ -16,6 +16,8 @@ typedef enum { titleScreen,
 GameMode currentGameMode = titleScreen;
 InputMode currentInputMode = NoInput;
 
+char *executablePath = NULL;
+
 //Text input objets
 char *currentInput = NULL;
 int currentInputMaxLength = 0;
@@ -59,10 +61,10 @@ int currentQuestionIndex;
 unsigned int currentPlayerTurnIndex;
 int choosenAnswer;
 
-bool initializeSDL();
+bool initializeSDL(const char *executablePath);
 void destroySDL();
 
-bool initializeSDLGameObjects();
+bool initializeSDLGameObjects(const char *executablePath);
 void destroySDLGameObjects();
 
 void freeQuestions();
